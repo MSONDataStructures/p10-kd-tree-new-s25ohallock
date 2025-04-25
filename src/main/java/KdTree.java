@@ -1,126 +1,201 @@
-/**
- * Description: Represents a set of points in the unit square
- * (all points have x- and y-coordinates between 0 and 1)
- * using <code>algs4.Point2D</code> to represent a point,
- * <code>algs4.RectHV</code> to represent a rectangle,
- * a red-black BST (used in <code>algs4.SET</code> or <code>java.util.TreeSet</code>)
- * to support range search (find all the points contained in a query rectangle)
- * and nearest-neighbor search (find a closest point to a query point).
- * <p>
- * This is the efficient implementation using a 2D-Tree.
- */
-
 import edu.princeton.cs.algs4.Point2D;
 import edu.princeton.cs.algs4.RectHV;
 import edu.princeton.cs.algs4.StdDraw;
-import edu.princeton.cs.algs4.SET;
 
 import java.util.ArrayList;
-import java.util.TreeSet;
+import java.util.List;
 
 public class KdTree {
 
-    /**
-     * Node inner class for your KD-Tree implementation,
-     * from the FAQ (feel free to modify).
-     */
     private static class Node {
-        private Point2D p;      // the point
-        private RectHV rect;    // the axis-aligned rectangle corresponding to this node
+        private final Point2D p;      // the point
+        private final RectHV rect;    // the axis-aligned rectangle corresponding to this node
         private Node lb;        // the left/bottom subtree
         private Node rt;        // the right/top subtree
+
+        public Node(Point2D p, RectHV rect) {
+            this.p = p;
+            this.rect = rect;
+            lb = null;
+            rt = null;
+        }
     }
 
-    /**
-     * An integer for the size of the canvas.
-     */
-    private static final int CANVAS_SIZE = 640;
+    private Node root;       // root of the 2D tree
+    private int size;        // size of the tree
 
-    /**
-     * A double for the size of the pen radius.
-     */
+    private static final int CANVAS_SIZE = 640;
     private static final double PEN_RADIUS = 0.01;
 
-    /**
-     * Constructs an empty set of points in the unit square.
-     */
+    // constructs an empty set of points in the unit square
     public KdTree() {
-        // TODO: your code here
+        root = null;
+        size = 0;
     }
 
-    /**
-     * Returns true if the set is empty.
-     * @return whether the set is empty
-     */
+    // returns if the set is empty
     public boolean isEmpty() {
-        // TODO: your code here
-        return false;
+        return root == null;
     }
 
-    /**
-     * Returns the number of points in the set.
-     * @return the number of points in the set
-     */
+    // returns the number of points in the set
     public int size() {
-        // TODO: your code here
-        return 0;
+        return size;
     }
 
-    /**
-     * Adds the point to the set (if not already in the set).
-     * @param p the point to be inserted
-     * @throws IllegalArgumentException if p is null
-     */
+    // adds the point to the set
     public void insert(Point2D p) {
-        // TODO: your code here
+        if (p == null) throw new IllegalArgumentException("Null point");
+        root = insert(root, p, true, null);
     }
 
-    /**
-     * Returns true if the set contains point p.
-     * @param p the point to be checked for
-     * @return true if the set contains point p
-     * @throws IllegalArgumentException if p is null
-     */
+    private Node insert(Node node, Point2D p, boolean isX, RectHV rect) {
+        if (node == null) {
+            size++;
+            Node node1 = new Node(p, rect);
+            return node1;
+        }
+
+        // compare the point to the current node based on the axis (x or y)
+        if (isX) {
+            if (p.x() < node.p.x()) {
+                double xmin = rect != null ? rect.xmin() : 0;
+                double xmax = node.p.x();
+                rect = new RectHV(xmin, rect != null ? rect.ymin() : 0, xmax, rect != null ? rect.ymax() : 1);
+                node.lb = insert(node.lb, p, !isX, rect);
+            } else if (p.x() > node.p.x()) {
+
+                double xmin = node.p.x();
+                double xmax = rect != null ? rect.xmax() : 1;
+                rect = new RectHV(xmin, rect != null ? rect.ymin() : 0, xmax, rect != null ? rect.ymax() : 1);
+                node.rt = insert(node.rt, p, !isX, rect);
+            }
+        } else {
+            if (p.y() < node.p.y()) {
+                double ymin = rect != null ? rect.ymin() : 0;
+                double ymax = node.p.y();
+                rect = new RectHV(rect != null ? rect.xmin() : 0, ymin, rect != null ? rect.xmax() : 1, ymax);
+                node.lb = insert(node.lb, p, !isX, rect);
+            } else if (p.y() > node.p.y()) {
+                double ymin = node.p.y();
+                double ymax = rect != null ? rect.ymax() : 1;
+                rect = new RectHV(rect != null ? rect.xmin() : 0, ymin, rect != null ? rect.xmax() : 1, ymax);
+                node.rt = insert(node.rt, p, !isX, rect);
+            }
+        }
+
+        return node;
+    }
+
+    // returns true if the set contains point p
     public boolean contains(Point2D p) {
-        // TODO: your code here
-        return false;
+        if (p == null) throw new IllegalArgumentException("Null point");
+        return contains(root, p, true); // Start with X-axis comparison
     }
 
-    /**
-     * Draws all points to standard draw.
-     */
+    private boolean contains(Node node, Point2D p, boolean isX) {
+        if (node == null) return false;
+
+        if (node.p.equals(p)) return true;
+
+        if (isX) {
+            if (p.x() < node.p.x()) {
+                return contains(node.lb, p, !isX);
+            } else {
+                return contains(node.rt, p, !isX);
+            }
+        } else {
+            if (p.y() < node.p.y()) {
+                return contains(node.lb, p, !isX);
+            } else {
+                return contains(node.rt, p, !isX);
+            }
+        }
+    }
+
+    // draws all points to standard draw
     public void draw() {
-        // TODO: your code here - feel free to modify what is here
         StdDraw.setCanvasSize(CANVAS_SIZE, CANVAS_SIZE);
         StdDraw.setPenRadius(PEN_RADIUS);
+        draw(root, true); // Start with X-axis comparison
     }
 
-    /**
-     * Returns all the points that are inside the rectangle.
-     * @param rect the rectangle
-     * @return all the points that are inside the rectangle
-     * @throws IllegalArgumentException if rect is null
-     */
+    private void draw(Node node, boolean isX) {
+        if (node == null) return;
+        node.p.draw();
+
+        // draw line dividing the region
+        if (isX) {
+            StdDraw.setPenColor(StdDraw.RED);
+            StdDraw.line(node.p.x(), 0, node.p.x(), 1); // Vertical line
+        } else {
+            StdDraw.setPenColor(StdDraw.BLUE);
+            StdDraw.line(0, node.p.y(), 1, node.p.y()); // Horizontal line
+        }
+
+        draw(node.lb, !isX);
+        draw(node.rt, !isX);
+    }
+
+    // returns all the points that are inside the rectangle
     public Iterable<Point2D> range(RectHV rect) {
-        // TODO: your code here
-        return new ArrayList<>();
+        if (rect == null) throw new IllegalArgumentException("Null rectangle");
+        List<Point2D> inside = new ArrayList<>();
+        range(root, rect, inside);
+        return inside;
     }
 
-    /**
-     * Returns a nearest neighbor in the set to point p; null if the set is empty.
-     * @param p the point to be checked
-     * @return a nearest neighbor in the set to point p; null if the set is empty
-     * @throws IllegalArgumentException if p is null
-     */
+    private void range(Node node, RectHV rect, List<Point2D> inside) {
+        if (node == null) return;
+
+        if (rect.contains(node.p)) {
+            inside.add(node.p);
+        }
+
+        if (node.lb != null && rect.intersects(node.lb.rect)) {
+            range(node.lb, rect, inside);
+        }
+        if (node.rt != null && rect.intersects(node.rt.rect)) {
+            range(node.rt, rect, inside);
+        }
+    }
+
+    // returns a nearest neighbor in the set to point p; null if the set is empty.
     public Point2D nearest(Point2D p) {
-        // TODO: your code here
-        return new Point2D(0.0, 0.0);
+        if (p == null) throw new IllegalArgumentException("Null point");
+        if (isEmpty()) return null;
+        return nearest(root, p, root.p, Double.POSITIVE_INFINITY);
     }
 
-    /**
-     * Optional method for your testing.
-     * @param args the arguments
-     */
+    private Point2D nearest(Node node, Point2D p, Point2D best, double bestDist) {
+        if (node == null) return best;
+
+        double dist = p.distanceSquaredTo(node.p);
+        if (dist < bestDist) {
+            bestDist = dist;
+            best = node.p;
+        }
+
+        Node first = (p.x() < node.p.x()) ? node.lb : node.rt;
+        Node second = (first == node.lb) ? node.rt : node.lb;
+
+        best = nearest(first, p, best, bestDist);
+
+        if (second != null && (p.x() - node.p.x()) * (p.x() - node.p.x()) < bestDist) {
+            best = nearest(second, p, best, bestDist);
+        }
+
+        return best;
+    }
+
+    // super epic and cool method for testing
     public static void main(String[] args) {
+        KdTree kdTree = new KdTree();
+        kdTree.insert(new Point2D(0.1, 0.2));
+        kdTree.insert(new Point2D(0.3, 0.4));
+        kdTree.insert(new Point2D(0.5, 0.6));
+        kdTree.insert(new Point2D(0.7, .8));
+        kdTree.draw();
+        System.out.println("Nearest to (0.2, 0.2): " + kdTree.nearest(new Point2D(0.2, 0.2)));
     }
 }
